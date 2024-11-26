@@ -1,9 +1,11 @@
 extends Node2D
 
-const CELL_SIZE := 10
+const CELL_SIZE := 16
 var cells_to_draw = []
 var is_game_paused = false
 var living_cells = 0
+
+signal game_exited
 
 func generate_cells(num_x: int, num_y: int) -> Array:
 	var cells = []
@@ -70,6 +72,36 @@ func next_iteration(current_cells: Array) -> Array:
 
 	return new_cells
 
+func draw_cells(cells: Array) -> void:
+	const WHITE_TILE = Vector2i(7, 7)
+	const BLACK_TILE = Vector2i(3, 3)
+	const CLICKED_TILE = Vector2i(4,3)
+	const TILE_SOURCE = 1
+
+	for x in range(cells.size()):
+		for y in range(cells[x].size()):
+			var cell_atlas_coords: Vector2i = $TileMapLayer.get_cell_atlas_coords(Vector2i(x,y))
+			
+			if cell_atlas_coords != CLICKED_TILE:
+				$TileMapLayer.set_cell(Vector2i(x,y), TILE_SOURCE, WHITE_TILE if cells[x][y] else BLACK_TILE)
+
+func draw_clicked_cell(click_position: Vector2) -> void:
+	var cell_coords: Vector2i = $TileMapLayer.local_to_map(click_position)
+	print("cell_coords = ", cell_coords)
+	print("click_pos = ", click_position)
+
+	const TILE_SOURCE = 1
+	const CLICKED_TILE = Vector2i(4,3)
+
+	$TileMapLayer.set_cell(cell_coords, TILE_SOURCE, CLICKED_TILE)
+
+
+# Called when there is an input event
+func _input(event):
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		draw_clicked_cell(event.position)
+
+
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	var dimensions = get_viewport_rect()
@@ -84,7 +116,7 @@ func _process(delta):
 	if not is_game_paused:
 		new_cells = next_iteration(cells_to_draw)
 		cells_to_draw = new_cells
-		queue_redraw()
+		# queue_redraw()
 
 	# Toggle the pausing of the game
 	if Input.is_action_just_pressed("pause_game") and not is_game_paused:
@@ -103,6 +135,12 @@ func _process(delta):
 		var num_y = dimensions.size.y / CELL_SIZE
 		cells_to_draw = generate_cells(num_x, num_y)
 
+	if Input.is_action_just_pressed("ui_cancel"):
+		game_exited.emit()
+		queue_free()
+
+
+
 	# The label used to show data to the player
 	var info_text = """FPS = %d
 	Living Cells = %d
@@ -117,9 +155,13 @@ func _process(delta):
 	# Get rid of annoying warning about unused variable
 	var _delta = delta
 
+	draw_cells(cells_to_draw)
+
+
 func _draw():
-	for x in range(cells_to_draw.size()):
-		for y in range(cells_to_draw[x].size()):
-			draw_rect(Rect2(x * CELL_SIZE, y * CELL_SIZE,
-				CELL_SIZE, CELL_SIZE),
-				Color.WHITE if cells_to_draw[x][y] else Color.BLACK)
+	# for x in range(cells_to_draw.size()):
+	# 	for y in range(cells_to_draw[x].size()):
+	# 		draw_rect(Rect2(x * CELL_SIZE, y * CELL_SIZE,
+	# 			CELL_SIZE, CELL_SIZE),
+	# 			Color.WHITE if cells_to_draw[x][y] else Color.BLACK)
+	pass

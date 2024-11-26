@@ -1,0 +1,27 @@
+[gd_scene load_steps=2 format=3 uid="uid://bamr47vc0f4fc"]
+
+[ext_resource type="Script" path="res://menu.gd" id="1_tg6w4"]
+
+[node name="Menu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_tg6w4")
+
+[node name="StartButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 192.0
+offset_top = 256.0
+offset_right = 448.0
+offset_bottom = 448.0
+text = "START"
+
+[node name="ExitButton" type="Button" parent="."]
+offset_left = 704.0
+offset_top = 256.0
+offset_right = 960.0
+offset_bottom = 448.0
+text = "EXIT"
