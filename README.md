@@ -2,4 +2,4 @@
 
 John Conway's Game of Life using the Godot Engine :)
 
-![image][game-of-life-godot.png]
+![image](game-of-life-godot.png)
