@@ -2,8 +2,11 @@ extends Node2D
 
 const CELL_SIZE := 16
 var cells_to_draw = []
-var is_game_paused = false
 var living_cells = 0
+
+var is_game_paused = false
+var use_infinite_grid = false
+
 var glider_pattern = [[true, false, false], [false, true, true], [true, true, false]]
 
 signal game_exited
@@ -57,6 +60,35 @@ func count_neighbour_cells(cell: Vector2i, cells: Array) -> int:
 	return num_alive_neighbour_cells
 
 
+func count_neighbour_cells_infinity(cell: Vector2i, cells: Array) -> int:
+	var num_alive_neighbour_cells = 0
+
+	# Check the cell's neighbours to determine its new state		
+	for i in range(-1, 2):
+		for j in range(-1, 2):
+			# Don't check neighbour [0, 0] as that's the current cell
+			if i == 0 and j == 0:
+				continue
+
+			var neighbour :Vector2i = Vector2i(cell.x + i, cell.y + j)
+			# Loop around the grid
+			if neighbour.x < 0:
+				neighbour.x = cells.size() - 1
+			elif neighbour.x >= cells.size():
+				neighbour.x = 0
+
+			if neighbour.y < 0:
+				neighbour.y = cells[neighbour.x].size() - 1
+			elif neighbour.y >= cells[neighbour.x].size():
+				neighbour.y = 0
+
+			# Finally, count neighbour cell if it's alive
+			if cells[neighbour.x][neighbour.y] == true:
+				num_alive_neighbour_cells += 1
+	
+	return num_alive_neighbour_cells
+
+
 func next_iteration(current_cells: Array) -> Array:
 	# Must reset living cell count
 	living_cells = 0
@@ -69,8 +101,9 @@ func next_iteration(current_cells: Array) -> Array:
 		new_cells[x].resize(current_cells[x].size())
 
 		for y in current_cells[x].size():
-			var num_alive_neighbours = count_neighbour_cells(Vector2i(x,y),
-				current_cells)
+			var num_alive_neighbours = count_neighbour_cells_infinity(Vector2i(x,y), current_cells) \
+				if use_infinite_grid else \
+					count_neighbour_cells(Vector2i(x,y), current_cells)
 			
 			# Game of Life
 			if current_cells[x][y]: # Cell is alive
@@ -190,6 +223,11 @@ func _input(event):
 			var num_x = dimensions.size.x / CELL_SIZE
 			var num_y = dimensions.size.y / CELL_SIZE
 			cells_to_draw = generate_cells(num_x, num_y)
+		elif event.is_action_pressed("toggle_infinite_grid"):
+			if use_infinite_grid:
+				use_infinite_grid = false
+			else:
+				use_infinite_grid = true
 		elif event.is_action_pressed("ui_cancel"):
 			game_exited.emit()
 			queue_free()
@@ -221,9 +259,10 @@ func _process(delta):
 	Esc to return to menu
 	Click to add glider
 	Right click to rotate glider
+	Infinite Grid = %d
 	"""
 	$InfoRect/GameInfo.text = info_text % [Performance.get_monitor((Performance.TIME_FPS)),
-		living_cells]
+		living_cells, use_infinite_grid as int]
 
 	# Get rid of annoying warning about unused variable
 	var _delta = delta
