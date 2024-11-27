@@ -5,7 +5,21 @@ var cells_to_draw = []
 var is_game_paused = false
 var living_cells = 0
 
+
 signal game_exited
+
+func _generate_blank_cells(num_x: int, num_y: int) -> Array:
+	var cells = []
+
+	for x in range(num_x):
+		cells.append([])
+		cells[x].resize(num_y)
+		
+		for y in range(num_y):
+			cells[x][y] = false
+
+	return cells
+
 
 func generate_cells(num_x: int, num_y: int) -> Array:
 	var cells = []
@@ -63,6 +77,7 @@ func next_iteration(current_cells: Array) -> Array:
 					new_cells[x][y] = false
 				elif num_alive_neighbours == 2 or num_alive_neighbours == 3:
 					# Cell is happy and remains alive
+					living_cells += 1
 					new_cells[x][y] = true
 			else: # Cell is dead
 				if num_alive_neighbours == 3:
@@ -72,34 +87,49 @@ func next_iteration(current_cells: Array) -> Array:
 
 	return new_cells
 
+func insert_cells(cells_to_insert: Array, current_cells: Array, coords: Vector2i) -> bool:
+	if coords.x > current_cells.size() or coords.y > current_cells[coords.x].size():
+		return false
+
+	for i in range(cells_to_insert.size()):
+		for j in range(cells_to_insert[i].size()):
+			# Bounds checking
+			if coords.x + i > current_cells.size() or coords.y + j > current_cells[i].size():
+				continue
+
+			current_cells[coords.x + i][coords.y + j] = cells_to_insert[i][j]
+		
+	return true
+
+func insert_glider(current_cells: Array, coords: Vector2i) -> void:
+	var glider_pattern = []
+	glider_pattern.resize(3)
+	glider_pattern[0] = [true, false, false]
+	glider_pattern[1] = [false, true, true]
+	glider_pattern[2] = [true, true, false]
+
+	insert_cells(glider_pattern, current_cells, coords)
+
 func draw_cells(cells: Array) -> void:
 	const WHITE_TILE = Vector2i(7, 7)
 	const BLACK_TILE = Vector2i(3, 3)
-	const CLICKED_TILE = Vector2i(4,3)
 	const TILE_SOURCE = 1
 
 	for x in range(cells.size()):
 		for y in range(cells[x].size()):
-			var cell_atlas_coords: Vector2i = $TileMapLayer.get_cell_atlas_coords(Vector2i(x,y))
-			
-			if cell_atlas_coords != CLICKED_TILE:
-				$TileMapLayer.set_cell(Vector2i(x,y), TILE_SOURCE, WHITE_TILE if cells[x][y] else BLACK_TILE)
+			$TileMapLayer.set_cell(Vector2i(x,y), TILE_SOURCE, WHITE_TILE if cells[x][y] else BLACK_TILE)
 
-func draw_clicked_cell(click_position: Vector2) -> void:
-	var cell_coords: Vector2i = $TileMapLayer.local_to_map(click_position)
-	print("cell_coords = ", cell_coords)
-	print("click_pos = ", click_position)
 
-	const TILE_SOURCE = 1
-	const CLICKED_TILE = Vector2i(4,3)
-
-	$TileMapLayer.set_cell(cell_coords, TILE_SOURCE, CLICKED_TILE)
+func click_cell(click_position: Vector2) -> Vector2i:
+	var coords = $TileMapLayer.local_to_map(click_position)
+	return coords
 
 
 # Called when there is an input event
 func _input(event):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		draw_clicked_cell(event.position)
+		var clicked_cell_coords = click_cell(event.position)
+		insert_glider(cells_to_draw, clicked_cell_coords)
 
 
 # Called when the node enters the scene tree for the first time.
@@ -109,6 +139,15 @@ func _ready():
 	var num_y = dimensions.size.y / CELL_SIZE
 
 	cells_to_draw = generate_cells(num_x, num_y)
+	# cells_to_draw = generate_blank_cells(num_x, num_y)
+
+	var cells_to_insert = []
+	cells_to_insert.resize(3)
+	cells_to_insert[0] = [true, true, true]
+	cells_to_insert[1] = [true, false, true]
+	cells_to_insert[2] = [true, true]
+
+	# insert_cells(cells_to_insert, cells_to_draw, Vector2i(1,1))
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):
@@ -116,7 +155,6 @@ func _process(delta):
 	if not is_game_paused:
 		new_cells = next_iteration(cells_to_draw)
 		cells_to_draw = new_cells
-		# queue_redraw()
 
 	# Toggle the pausing of the game
 	if Input.is_action_just_pressed("pause_game") and not is_game_paused:
@@ -156,12 +194,3 @@ func _process(delta):
 	var _delta = delta
 
 	draw_cells(cells_to_draw)
-
-
-func _draw():
-	# for x in range(cells_to_draw.size()):
-	# 	for y in range(cells_to_draw[x].size()):
-	# 		draw_rect(Rect2(x * CELL_SIZE, y * CELL_SIZE,
-	# 			CELL_SIZE, CELL_SIZE),
-	# 			Color.WHITE if cells_to_draw[x][y] else Color.BLACK)
-	pass
