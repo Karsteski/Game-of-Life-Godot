@@ -84,15 +84,15 @@ anchor_left = 1.0
 anchor_top = 0.5
 anchor_right = 1.0
 anchor_bottom = 0.5
-offset_left = 1088.0
+offset_left = 1064.0
 offset_top = 8.0
 offset_right = 1272.0
-offset_bottom = 160.0
+offset_bottom = 256.0
 grow_horizontal = 0
 grow_vertical = 2
-size_flags_horizontal = 4
+size_flags_horizontal = 6
+size_flags_vertical = 3
 color = Color(1, 1, 1, 0.568627)
-metadata/_edit_group_ = true
 
 [node name="GameInfo" type="Label" parent="InfoRect"]
 z_index = 5
@@ -105,12 +105,8 @@ offset_left = -176.0
 offset_bottom = 156.0
 grow_horizontal = 0
 theme_override_colors/font_color = Color(0.419608, 0.321569, 0.376471, 1)
-text = "FPS = 0
-Living Cells = 0
-
-Spacebar to pause
-R to restart
-H to hide this window"
+text = "
+"
 
 [node name="TileMapLayer" type="TileMapLayer" parent="."]
 tile_set = SubResource("TileSet_2764c")

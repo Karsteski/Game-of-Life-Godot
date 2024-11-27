@@ -4,7 +4,7 @@ const CELL_SIZE := 16
 var cells_to_draw = []
 var is_game_paused = false
 var living_cells = 0
-
+var glider_pattern = [[true, false, false], [false, true, true], [true, true, false]]
 
 signal game_exited
 
@@ -34,6 +34,7 @@ func generate_cells(num_x: int, num_y: int) -> Array:
 
 	return cells
 
+
 func count_neighbour_cells(cell: Vector2i, cells: Array) -> int:
 	var num_alive_neighbour_cells = 0
 
@@ -54,6 +55,7 @@ func count_neighbour_cells(cell: Vector2i, cells: Array) -> int:
 					num_alive_neighbour_cells += 1
 	
 	return num_alive_neighbour_cells
+
 
 func next_iteration(current_cells: Array) -> Array:
 	# Must reset living cell count
@@ -87,6 +89,49 @@ func next_iteration(current_cells: Array) -> Array:
 
 	return new_cells
 
+
+func rotateGridRight(grid: Array) -> Array:
+	# Only attempt to rotate NxN matrices
+	for x in grid.size():
+		var N = grid.size()
+		if grid[x].size() != N:
+			return grid
+	
+	var size = grid.size()
+
+	# Number of rotatable layers
+	@warning_ignore("integer_division")
+	var layer_count = size / 2
+
+	# Deep copy so we don't affect the original array
+	var rotatedGrid = grid.duplicate(true)
+
+	# Layer loop i.e. i = 0, i = 1
+	for layer in range(0, layer_count):
+		var first = layer
+		var last = size - first - 1
+
+		# Movemement within a single layer, i.e. element loop
+		for element in range(first, last):
+			var offset = element - first
+
+			# element increments column
+			var top = rotatedGrid[first][element]
+			# element increments row
+			var right_side = rotatedGrid[element][last]
+			# last - offset decrements column
+			var bottom = rotatedGrid[last][last - offset]
+			# last - offset decrements row
+			var left_side = rotatedGrid[last - offset][first]
+
+			rotatedGrid[first][element] = left_side
+			rotatedGrid[element][last] = top
+			rotatedGrid[last][last - offset] = right_side
+			rotatedGrid[last - offset][first] = bottom
+
+	return rotatedGrid
+
+
 func insert_cells(cells_to_insert: Array, current_cells: Array, coords: Vector2i) -> bool:
 	if coords.x > current_cells.size() or coords.y > current_cells[coords.x].size():
 		return false
@@ -96,19 +141,14 @@ func insert_cells(cells_to_insert: Array, current_cells: Array, coords: Vector2i
 			# Bounds checking
 			if coords.x + i > current_cells.size() or coords.y + j > current_cells[i].size():
 				continue
-
 			current_cells[coords.x + i][coords.y + j] = cells_to_insert[i][j]
 		
 	return true
 
-func insert_glider(current_cells: Array, coords: Vector2i) -> void:
-	var glider_pattern = []
-	glider_pattern.resize(3)
-	glider_pattern[0] = [true, false, false]
-	glider_pattern[1] = [false, true, true]
-	glider_pattern[2] = [true, true, false]
 
-	insert_cells(glider_pattern, current_cells, coords)
+func insert_pattern(pattern: Array, current_cells: Array, coords: Vector2i) -> void:
+	insert_cells(pattern, current_cells, coords)
+
 
 func draw_cells(cells: Array) -> void:
 	const WHITE_TILE = Vector2i(7, 7)
@@ -127,10 +167,32 @@ func click_cell(click_position: Vector2) -> Vector2i:
 
 # Called when there is an input event
 func _input(event):
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var clicked_cell_coords = click_cell(event.position)
-		insert_glider(cells_to_draw, clicked_cell_coords)
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			var clicked_cell_coords = click_cell(event.position)
+			insert_pattern(glider_pattern, cells_to_draw, clicked_cell_coords)
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			glider_pattern = rotateGridRight(glider_pattern)
 
+	if event is InputEventKey:
+		if event.is_action_pressed("pause_game"):
+			if not is_game_paused:
+				is_game_paused = true
+			elif is_game_paused:
+				is_game_paused = false
+		elif event.is_action_pressed("hide_window"):
+			if $InfoRect.visible:
+				$InfoRect.visible = false
+			else:
+				$InfoRect.visible = true
+		elif event.is_action_pressed("restart_game"):
+			var dimensions = get_viewport_rect()
+			var num_x = dimensions.size.x / CELL_SIZE
+			var num_y = dimensions.size.y / CELL_SIZE
+			cells_to_draw = generate_cells(num_x, num_y)
+		elif event.is_action_pressed("ui_cancel"):
+			game_exited.emit()
+			queue_free()
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -139,45 +201,15 @@ func _ready():
 	var num_y = dimensions.size.y / CELL_SIZE
 
 	cells_to_draw = generate_cells(num_x, num_y)
-	# cells_to_draw = generate_blank_cells(num_x, num_y)
 
-	var cells_to_insert = []
-	cells_to_insert.resize(3)
-	cells_to_insert[0] = [true, true, true]
-	cells_to_insert[1] = [true, false, true]
-	cells_to_insert[2] = [true, true]
-
-	# insert_cells(cells_to_insert, cells_to_draw, Vector2i(1,1))
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):
 	var new_cells = []
+
 	if not is_game_paused:
 		new_cells = next_iteration(cells_to_draw)
 		cells_to_draw = new_cells
-
-	# Toggle the pausing of the game
-	if Input.is_action_just_pressed("pause_game") and not is_game_paused:
-		is_game_paused = true
-	elif Input.is_action_just_pressed("pause_game") and is_game_paused:
-		is_game_paused = false
-
-	if Input.is_action_just_pressed("hide_window") and $InfoRect.visible == true:
-		$InfoRect.visible = false
-	elif Input.is_action_just_pressed("hide_window") and $InfoRect.visible == false:
-		$InfoRect.visible = true
-
-	if Input.is_action_just_pressed("restart_game"):
-		var dimensions = get_viewport_rect()
-		var num_x = dimensions.size.x / CELL_SIZE
-		var num_y = dimensions.size.y / CELL_SIZE
-		cells_to_draw = generate_cells(num_x, num_y)
-
-	if Input.is_action_just_pressed("ui_cancel"):
-		game_exited.emit()
-		queue_free()
-
-
 
 	# The label used to show data to the player
 	var info_text = """FPS = %d
@@ -186,6 +218,9 @@ func _process(delta):
 	Spacebar to pause
 	R to restart
 	H to hide this window
+	Esc to return to menu
+	Click to add glider
+	Right click to rotate glider
 	"""
 	$InfoRect/GameInfo.text = info_text % [Performance.get_monitor((Performance.TIME_FPS)),
 		living_cells]
